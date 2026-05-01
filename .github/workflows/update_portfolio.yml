@@ -1,0 +1,34 @@
+name: Update portfolio prices
+
+on:
+  schedule:
+    # Every 10 minutes on weekdays, 07:00-21:00 UTC (covers GPW, Xetra, NYSE)
+    - cron: '*/10 7-21 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  update-prices:
+    name: Fetch prices and save history
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run portfolio update script
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python scripts/update_portfolio.py
