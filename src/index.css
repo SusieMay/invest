@@ -1,0 +1,148 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Zmienne motywu (kanały RGB, format "R G B") ──────────────────
+   Motyw jasny w :root, ciemny w html.theme-dark. Skala stone jest
+   w motywie ciemnym odwrócona (50 <-> 950), dzięki czemu wszystkie
+   klasy stone-* automatycznie się przełączają. */
+:root {
+  --c-stone-50: 250 250 249;
+  --c-stone-100: 245 245 244;
+  --c-stone-200: 231 229 228;
+  --c-stone-300: 214 211 209;
+  --c-stone-400: 168 162 158;
+  --c-stone-500: 120 113 108;
+  --c-stone-600: 87 83 78;
+  --c-stone-700: 68 64 60;
+  --c-stone-800: 41 37 36;
+  --c-stone-900: 28 25 23;
+  --c-stone-950: 12 10 9;
+
+  --c-canvas: 244 243 237;
+  --c-surface: 234 232 224;
+  --c-surface2: 229 227 218;
+  --c-ink: 51 51 45;
+  --c-line: 168 162 158;
+  --c-strong: 68 64 60;
+  --c-strong-hover: 41 37 36;
+  --c-overlay: 51 51 45;
+}
+
+html.theme-dark {
+  --c-stone-50: 12 10 9;
+  --c-stone-100: 28 25 23;
+  --c-stone-200: 41 37 36;
+  --c-stone-300: 68 64 60;
+  --c-stone-400: 87 83 78;
+  --c-stone-500: 120 113 108;
+  --c-stone-600: 168 162 158;
+  --c-stone-700: 214 211 209;
+  --c-stone-800: 231 229 228;
+  --c-stone-900: 245 245 244;
+  --c-stone-950: 250 250 249;
+
+  --c-canvas: 28 25 23;
+  --c-surface: 41 37 36;
+  --c-surface2: 51 47 45;
+  --c-ink: 234 232 224;
+  --c-line: 87 83 78;
+  --c-strong: 87 83 78;
+  --c-strong-hover: 120 113 108;
+  --c-overlay: 12 10 9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  background-color: rgb(var(--c-canvas));
+  color: rgb(var(--c-ink));
+}
+
+/* ── Perforated dot-matrix dividers ── */
+.border-perf {
+  border-image: repeating-linear-gradient(
+    to right,
+    rgb(var(--c-line)) 0px,
+    rgb(var(--c-line)) 3px,
+    transparent 3px,
+    transparent 8px
+  ) 1 / 0 0 1px 0;
+}
+
+.border-perf-top {
+  border-image: repeating-linear-gradient(
+    to right,
+    rgb(var(--c-line)) 0px,
+    rgb(var(--c-line)) 3px,
+    transparent 3px,
+    transparent 8px
+  ) 1 / 1px 0 0 0;
+}
+
+/* Horizontal perforated line as a standalone element */
+.perf-line {
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    to right,
+    rgb(var(--c-line)) 0px,
+    rgb(var(--c-line)) 3px,
+    transparent 3px,
+    transparent 8px
+  );
+}
+
+/* Input styling overrides for the receipt look */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.3);
+}
+
+html.theme-dark input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgb(var(--c-surface));
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--c-line));
+  border-radius: 3px;
+}
+
+/* ── Nadpisania klas Tailwinda na tokeny motywu ───────────────────
+   Klasy z zapisem hex (arbitrary values) nie reagują na zmienne CSS,
+   więc mapujemy je tutaj na tokeny motywu. Dzięki temu motyw ciemny
+   działa bez edycji setek klas w komponentach. */
+.bg-\[\#F4F3ED\] { background-color: rgb(var(--c-canvas)) !important; }
+.bg-\[\#EAE8E0\] { background-color: rgb(var(--c-surface)) !important; }
+.bg-\[\#E5E3DA\] { background-color: rgb(var(--c-surface2)) !important; }
+.text-\[\#33332D\] { color: rgb(var(--c-ink)) !important; }
+.hover\:text-\[\#33332D\]:hover { color: rgb(var(--c-ink)) !important; }
+.border-\[\#33332D\] { border-color: rgb(var(--c-ink)) !important; }
+.focus\:border-\[\#33332D\]:focus { border-color: rgb(var(--c-ink)) !important; }
+
+/* Tooltip (dymki): ciemny chip w obu motywach. */
+.bg-\[\#33332D\] { background-color: rgb(var(--c-strong)) !important; }
+
+/* Mocne elementy (aktywne zakładki, przyciski, logo) z jasnym tekstem —
+   mają pozostać ciemne w obu motywach, więc nie odwracamy skali stone. */
+.bg-stone-700 { background-color: rgb(var(--c-strong)) !important; }
+.hover\:bg-stone-800:hover { background-color: rgb(var(--c-strong-hover)) !important; }
+.active\:bg-stone-900:active { background-color: rgb(var(--c-strong-hover)) !important; }
+.border-stone-700 { border-color: rgb(var(--c-strong)) !important; }
+
+/* Recharts tooltip override */
+.recharts-default-tooltip {
+  font-family: 'IBM Plex Mono', monospace !important;
+}
