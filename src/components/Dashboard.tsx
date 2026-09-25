@@ -91,11 +91,13 @@ function Dashboard({ onLogout }: DashboardProps) {
     return () => document.removeEventListener('mousedown', onClick)
   }, [settingsOpen])
 
-  // Ceny w bazie aktualizuje GitHub Actions (yfinance) co ~10 min.
-  // Frontend co 5 min po prostu pobiera świeże dane z bazy (bez wywoływania funkcji).
+  // Co 5 min frontend uruchamia Supabase Edge Function, która pobiera świeże ceny
+  // z Yahoo Finance, zapisuje je w bazie i aktualizuje portfolio_history.
   const DATA_REFRESH_INTERVAL = 300 // 5 minut w sekundach
 
   const [countdown, setCountdown] = useState(DATA_REFRESH_INTERVAL)
+  const refreshInFlightRef = useRef(false)
+  const nextRefreshAtRef = useRef(Date.now() + DATA_REFRESH_INTERVAL * 1000)
 
   const formatCountdown = (s: number) => {
     const h = Math.floor(s / 3600)
@@ -190,7 +192,34 @@ function Dashboard({ onLogout }: DashboardProps) {
     }
   }, [firstFlowDate])
 
-  // Realtime: natychmiastowa aktualizacja po zmianach w tabeli assets (zamiast czekać na poll).
+  const refreshPrices = useCallback(async (silent = false) => {
+    if (refreshInFlightRef.current) return
+    refreshInFlightRef.current = true
+    if (!silent) setRefreshingPrices(true)
+    setError(null)
+    try {
+      const { data: refreshData, error: refreshError } = await supabase.functions.invoke('refresh-prices')
+      if (refreshError) throw refreshError
+      const rates = refreshData as { usdPln?: number; eurPln?: number; krwPln?: number } | null
+      if (typeof rates?.usdPln === 'number' && rates.usdPln > 0) setExchangeRate(rates.usdPln)
+      if (typeof rates?.eurPln === 'number' && rates.eurPln > 0) setEurRate(rates.eurPln)
+      if (typeof rates?.krwPln === 'number' && rates.krwPln > 0) setKrwRate(rates.krwPln)
+      await fetchData(true)
+      setLastUpdated(new Date())
+    } catch (err) {
+      console.error(err)
+      if (!silent) {
+        setError('Nie udało się odświeżyć cen rynkowych. Sprawdź konfigurację funkcji Supabase.')
+      }
+    } finally {
+      refreshInFlightRef.current = false
+      if (!silent) setRefreshingPrices(false)
+      nextRefreshAtRef.current = Date.now() + DATA_REFRESH_INTERVAL * 1000
+      setCountdown(DATA_REFRESH_INTERVAL)
+    }
+  }, [fetchData])
+
+  // Realtime: natychmiastowa aktualizacja po zmianach w tabeli assets.
   useEffect(() => {
     const channel = supabase
       .channel('assets-changes')
@@ -203,41 +232,21 @@ function Dashboard({ onLogout }: DashboardProps) {
     }
   }, [fetchData])
 
-  // Auto-refresh danych: co 5 min pobiera świeże ceny z bazy (aktualizowane przez GitHub Actions)
+  // Auto-refresh: uruchamia faktyczne pobranie cen. Termin opiera się na Date.now(),
+  // dzięki czemu throttling timerów w nieaktywnej karcie nie rozjeżdża odliczania.
   useEffect(() => {
     const tick = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          fetchData(true).then(() => setLastUpdated(new Date()))
-          return DATA_REFRESH_INTERVAL
-        }
-        return prev - 1
-      })
+      const secondsLeft = Math.max(0, Math.ceil((nextRefreshAtRef.current - Date.now()) / 1000))
+      setCountdown(secondsLeft)
+      if (secondsLeft === 0 && !refreshInFlightRef.current) {
+        nextRefreshAtRef.current = Date.now() + DATA_REFRESH_INTERVAL * 1000
+        void refreshPrices(true)
+      }
     }, 1000)
     return () => clearInterval(tick)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshPrices])
 
-  const handleRefresh = async () => {
-    if (refreshingPrices) return
-    setRefreshingPrices(true)
-    setError(null)
-    try {
-      const { data: refreshData, error: refreshError } = await supabase.functions.invoke('refresh-prices')
-      if (refreshError) throw refreshError
-      const rates = refreshData as { usdPln?: number; eurPln?: number; krwPln?: number } | null
-      if (typeof rates?.usdPln === 'number' && rates.usdPln > 0) setExchangeRate(rates.usdPln)
-      if (typeof rates?.eurPln === 'number' && rates.eurPln > 0) setEurRate(rates.eurPln)
-      if (typeof rates?.krwPln === 'number' && rates.krwPln > 0) setKrwRate(rates.krwPln)
-      await fetchData()
-      setLastUpdated(new Date())
-      setCountdown(DATA_REFRESH_INTERVAL)
-    } catch (err) {
-      console.error(err)
-      setError('Nie udało się odświeżyć cen rynkowych. Sprawdź konfigurację funkcji Supabase.')
-    } finally {
-      setRefreshingPrices(false)
-    }
-  }
+  const handleRefresh = () => refreshPrices(false)
 
   const fxRates: FxRates = useMemo(
     () => ({ usdPln: exchangeRate, eurPln: eurRate, krwPln: krwRate }),
